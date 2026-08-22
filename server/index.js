@@ -20,10 +20,10 @@ const PORT = process.env.PORT || 5000;
 // Security Middleware
 app.use(helmet({
   crossOriginResourcePolicy: false,
-  contentSecurityPolicy: false, // Allows flexible assets in production
+  contentSecurityPolicy: false,
 }));
 
-// CORS Configuration
+// CORS Configuration (Allows all origins in production)
 app.use(cors({
   origin: true,
   credentials: true,
@@ -73,14 +73,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve Client Static Build if exists (Fullstack Unified Deployment)
-const clientDistPath = path.join(__dirname, '../client/dist');
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+app.get('/', (req, res) => {
+  res.json({
+    status: 'healthy',
+    message: 'LDRP-ITR CE-A Backend API is live and running on Vercel!',
+    routes: ['/api/health', '/api/auth/login', '/api/forms', '/api/students']
   });
-}
+});
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -91,10 +90,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`🏛️  LDRP CE-A Command Center Server LIVE on Port ${PORT}`);
-  console.log(`🌐  API URL: http://localhost:${PORT}/api/health`);
-  console.log(`🎓  Students: 78 | Mentors: 2 | Groups: 8`);
-  console.log(`=======================================================`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`🏛️  LDRP CE-A Command Center Server LIVE on Port ${PORT}`);
+    console.log(`🌐  API URL: http://localhost:${PORT}/api/health`);
+    console.log(`🎓  Students: 78 | Mentors: 2 | Groups: 8`);
+    console.log(`=======================================================`);
+  });
+}
+
+module.exports = app;
