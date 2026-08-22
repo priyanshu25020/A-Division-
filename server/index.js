@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 
@@ -23,33 +22,27 @@ app.use(helmet({
   contentSecurityPolicy: false,
 }));
 
-// CORS Configuration (Allows all origins in production)
+// CORS Configuration
 app.use(cors({
   origin: true,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 }));
-
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests, please try again after some time.' }
-});
-app.use('/api/', limiter);
 
 // Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static uploads directory
+// Safe uploads directory (Safely handle serverless read-only filesystems)
 const uploadsPath = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsPath));
+} catch (e) {
+  // Ignored in read-only serverless environment
 }
-app.use('/uploads', express.static(uploadsPath));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -69,6 +62,7 @@ app.get('/api/health', (req, res) => {
     class: 'CE-A',
     institution: 'LDRP-ITR Gandhinagar',
     version: '1.0.0',
+    serverless: true,
     timestamp: new Date().toISOString()
   });
 });
@@ -76,8 +70,17 @@ app.get('/api/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     status: 'healthy',
-    message: 'LDRP-ITR CE-A Backend API is live and running on Vercel!',
-    routes: ['/api/health', '/api/auth/login', '/api/forms', '/api/students']
+    message: 'LDRP-ITR CE-A Backend API is LIVE and running on Vercel Serverless!',
+    endpoints: [
+      '/api/health',
+      '/api/auth/demo-accounts',
+      '/api/auth/login',
+      '/api/forms',
+      '/api/students',
+      '/api/holidays/active-poll',
+      '/api/announcements',
+      '/api/academics/subjects'
+    ]
   });
 });
 
@@ -90,13 +93,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log(`=======================================================`);
-    console.log(`🏛️  LDRP CE-A Command Center Server LIVE on Port ${PORT}`);
-    console.log(`🌐  API URL: http://localhost:${PORT}/api/health`);
-    console.log(`🎓  Students: 78 | Mentors: 2 | Groups: 8`);
-    console.log(`=======================================================`);
+    console.log(`LDRP CE-A Server running locally on port ${PORT}`);
   });
 }
 
