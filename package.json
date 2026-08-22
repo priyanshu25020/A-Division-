@@ -2,7 +2,10 @@
   "name": "ldrp-cea-command-center",
   "version": "1.0.0",
   "description": "LDRP-ITR CE-A Class Command Center",
+  "main": "server/index.js",
   "scripts": {
+    "build": "cd client && npm install && npm run build && cd ../server && npm install",
+    "start": "node server/index.js",
     "server": "node server/index.js",
     "client": "cd client && npm run dev",
     "seed": "node server/data/seed.js"

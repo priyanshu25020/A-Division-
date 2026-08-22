@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 
 const authRoutes = require('./routes/auth');
 const studentRoutes = require('./routes/students');
@@ -19,9 +20,10 @@ const PORT = process.env.PORT || 5000;
 // Security Middleware
 app.use(helmet({
   crossOriginResourcePolicy: false,
+  contentSecurityPolicy: false, // Allows flexible assets in production
 }));
 
-// CORS Configuration (Allows Localhost + Vercel Cloud Domains)
+// CORS Configuration
 app.use(cors({
   origin: true,
   credentials: true,
@@ -43,7 +45,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const uploadsPath = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsPath));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -66,6 +72,15 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Serve Client Static Build if exists (Fullstack Unified Deployment)
+const clientDistPath = path.join(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Global Error Handler
 app.use((err, req, res, next) => {
