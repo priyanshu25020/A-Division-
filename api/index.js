@@ -1,4 +1,4 @@
-const app = require('../index');
+const app = require('../server/index');
 
 module.exports = (req, res) => {
   return app(req, res);
