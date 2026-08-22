@@ -16,7 +16,7 @@ const analyticsRoutes = require('./routes/analytics');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security Middleware (Configured for open API access)
+// Security Middleware
 app.use(helmet({
   crossOriginResourcePolicy: false,
   contentSecurityPolicy: false,
@@ -29,27 +29,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
 }));
 
-// Preflight CORS handler for all routes
+// Preflight CORS handler
 app.options('*', cors());
 
 // Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Safe uploads directory
-const uploadsPath = path.join(__dirname, 'uploads');
-try {
-  if (!fs.existsSync(uploadsPath)) {
-    fs.mkdirSync(uploadsPath, { recursive: true });
-  }
-  app.use('/uploads', express.static(uploadsPath));
-} catch (e) {}
+// Health Check
+app.get('/api/health', (req, res) => res.json({ status: 'healthy', version: '1.0.0', serverless: true }));
+app.get('/health', (req, res) => res.json({ status: 'healthy', version: '1.0.0', serverless: true }));
 
-// Health check on root and /api/health
-app.get('/api/health', (req, res) => res.json({ status: 'healthy', version: '1.0.0' }));
-app.get('/health', (req, res) => res.json({ status: 'healthy', version: '1.0.0' }));
-
-// Bind routes to BOTH /api/* AND /* so missing /api in URL never fails!
+// Bind routes to BOTH /api/* AND /*
 const bindRoutes = (prefix = '') => {
   app.use(`${prefix}/auth`, authRoutes);
   app.use(`${prefix}/students`, studentRoutes);
@@ -62,13 +53,13 @@ const bindRoutes = (prefix = '') => {
 };
 
 bindRoutes('/api');
-bindRoutes(''); // Fallback without /api
+bindRoutes('');
 
 app.get('/', (req, res) => {
   res.json({
     status: 'healthy',
     message: 'LDRP CE-A Class Command Center API is LIVE!',
-    login_url: '/api/auth/login'
+    endpoints: ['/api/health', '/api/auth/login', '/api/auth/demo-accounts', '/api/forms', '/api/students']
   });
 });
 
@@ -81,9 +72,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+// Only start TCP listener when running as standalone Node process (NOT on Vercel Serverless)
+if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`LDRP CE-A Server running locally on port ${PORT}`);
   });
 }
 
