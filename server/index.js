@@ -16,86 +16,74 @@ const analyticsRoutes = require('./routes/analytics');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security Middleware
+// Security Middleware (Configured for open API access)
 app.use(helmet({
   crossOriginResourcePolicy: false,
   contentSecurityPolicy: false,
 }));
 
-// CORS Configuration
+// CORS Configuration - Permissive for Render & Vercel
 app.use(cors({
-  origin: true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
 }));
+
+// Preflight CORS handler for all routes
+app.options('*', cors());
 
 // Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Safe uploads directory (Safely handle serverless read-only filesystems)
+// Safe uploads directory
 const uploadsPath = path.join(__dirname, 'uploads');
 try {
   if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true });
   }
   app.use('/uploads', express.static(uploadsPath));
-} catch (e) {
-  // Ignored in read-only serverless environment
-}
+} catch (e) {}
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/forms', formRoutes);
-app.use('/api/holidays', holidayRoutes);
-app.use('/api/announcements', announcementRoutes);
-app.use('/api/leaves', leaveRoutes);
-app.use('/api/academics', academicRoutes);
-app.use('/api/analytics', analyticsRoutes);
+// Health check on root and /api/health
+app.get('/api/health', (req, res) => res.json({ status: 'healthy', version: '1.0.0' }));
+app.get('/health', (req, res) => res.json({ status: 'healthy', version: '1.0.0' }));
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    name: 'LDRP CE-A Class Command Center API',
-    class: 'CE-A',
-    institution: 'LDRP-ITR Gandhinagar',
-    version: '1.0.0',
-    serverless: true,
-    timestamp: new Date().toISOString()
-  });
-});
+// Bind routes to BOTH /api/* AND /* so missing /api in URL never fails!
+const bindRoutes = (prefix = '') => {
+  app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/students`, studentRoutes);
+  app.use(`${prefix}/forms`, formRoutes);
+  app.use(`${prefix}/holidays`, holidayRoutes);
+  app.use(`${prefix}/announcements`, announcementRoutes);
+  app.use(`${prefix}/leaves`, leaveRoutes);
+  app.use(`${prefix}/academics`, academicRoutes);
+  app.use(`${prefix}/analytics`, analyticsRoutes);
+};
+
+bindRoutes('/api');
+bindRoutes(''); // Fallback without /api
 
 app.get('/', (req, res) => {
   res.json({
     status: 'healthy',
-    message: 'LDRP-ITR CE-A Backend API is LIVE and running on Vercel Serverless!',
-    endpoints: [
-      '/api/health',
-      '/api/auth/demo-accounts',
-      '/api/auth/login',
-      '/api/forms',
-      '/api/students',
-      '/api/holidays/active-poll',
-      '/api/announcements',
-      '/api/academics/subjects'
-    ]
+    message: 'LDRP CE-A Class Command Center API is LIVE!',
+    login_url: '/api/auth/login'
   });
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('Server Exception:', err);
+  console.error('Server Error:', err);
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message: err.message || 'Internal Server Error'
   });
 });
 
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log(`LDRP CE-A Server running locally on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 

@@ -1,4 +1,12 @@
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Smart Base URL detection: Automatically ensures /api or correct endpoint
+function getApiBaseUrl() {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return '/api';
+  const clean = envUrl.replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
+}
+
+const BASE_URL = getApiBaseUrl();
 
 export function getAuthToken() {
   return localStorage.getItem('ldrp_auth_token') || '';
@@ -27,7 +35,8 @@ export async function apiRequest(endpoint, options = {}) {
   }
 
   try {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
+    const url = `${BASE_URL}${endpoint}`;
+    const res = await fetch(url, {
       ...options,
       headers
     });
