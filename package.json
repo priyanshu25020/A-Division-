@@ -1,0 +1,10 @@
+{
+  "name": "ldrp-cea-command-center",
+  "version": "1.0.0",
+  "description": "LDRP-ITR CE-A Class Command Center",
+  "scripts": {
+    "server": "node server/index.js",
+    "client": "cd client && npm run dev",
+    "seed": "node server/data/seed.js"
+  }
+}
